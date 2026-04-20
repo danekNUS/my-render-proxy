@@ -5,24 +5,27 @@ const url = require('url');
 const PORT = process.env.PORT || 8080;
 
 const server = http.createServer((req, res) => {
-  if (req.url === '/ping') {
-    res.writeHead(200);
-    return res.end('pong');
-  }
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('HTTP proxy running');
+});
 
-  const target = req.url.slice(1); // /https://site.com
+// HTTP requests
+server.on('request', (req, res) => {
+  const parsed = url.parse(req.url);
 
-  if (!target.startsWith('http')) {
+  const target = parsed.path?.slice(1);
+
+  if (!target || !target.startsWith('http')) {
     res.writeHead(400);
-    return res.end('Use /https://example.com');
+    return res.end('Bad request');
   }
 
-  const parsed = new URL(target);
+  const targetUrl = new URL(target);
 
   const options = {
-    hostname: parsed.hostname,
-    port: parsed.port || 80,
-    path: parsed.pathname + parsed.search,
+    hostname: targetUrl.hostname,
+    port: targetUrl.port || 80,
+    path: targetUrl.pathname + targetUrl.search,
     method: req.method,
     headers: req.headers,
   };
@@ -40,6 +43,7 @@ const server = http.createServer((req, res) => {
   });
 });
 
+// HTTPS CONNECT (самое важное для SwitchyOmega)
 server.on('connect', (req, clientSocket, head) => {
   const { port, hostname } = new URL(`http://${req.url}`);
 

@@ -12,26 +12,20 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  proxy.web(req, res, { target: req.url, secure: false }, () => {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const target = url.searchParams.get('url');
+
+  if (!target) {
+    res.writeHead(400);
+    return res.end('Missing ?url=');
+  }
+
+  proxy.web(req, res, {
+    target,
+    changeOrigin: true,
+    secure: false
+  }, () => {
     res.writeHead(500);
     res.end('Proxy Error');
   });
-});
-
-server.on('connect', (req, clientSocket, head) => {
-  const { port, hostname } = new URL(`http://${req.url}`);
-
-  const serverSocket = net.connect(port || 443, hostname, () => {
-    clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
-    serverSocket.write(head);
-    serverSocket.pipe(clientSocket);
-    clientSocket.pipe(serverSocket);
-  });
-
-  serverSocket.on('error', () => clientSocket.end());
-  clientSocket.on('error', () => serverSocket.end());
-});
-
-server.listen(port, () => {
-  console.log(`Proxy server is running on port ${port}`);
 });

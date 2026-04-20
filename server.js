@@ -1,31 +1,40 @@
 const http = require('http');
 const httpProxy = require('http-proxy');
-const net = require('net');
 
 const port = process.env.PORT || 8080;
 const proxy = httpProxy.createProxyServer({});
 
 const server = http.createServer((req, res) => {
-  if (req.url === '/ping') {
-    res.writeHead(200);
-    res.end('pong');
-    return;
-  }
+  try {
+    if (req.url === '/ping') {
+      res.writeHead(200);
+      return res.end('pong');
+    }
 
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  const target = url.searchParams.get('url');
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const target = url.searchParams.get('url');
 
-  if (!target) {
-    res.writeHead(400);
-    return res.end('Missing ?url=');
-  }
+    if (!target) {
+      res.writeHead(400);
+      return res.end('Missing ?url=');
+    }
 
-  proxy.web(req, res, {
-    target,
-    changeOrigin: true,
-    secure: false
-  }, () => {
+    proxy.web(req, res, {
+      target,
+      changeOrigin: true,
+      secure: false
+    });
+
+  } catch (err) {
     res.writeHead(500);
-    res.end('Proxy Error');
-  });
+    res.end('Server error');
+  }
+});
+
+server.on('error', (err) => {
+  console.log('Server error:', err);
+});
+
+server.listen(port, () => {
+  console.log('Proxy running on port', port);
 });
